@@ -24,8 +24,12 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ClientesData = require(Shared:WaitForChild("ClientesData"))
 local FinalesData = require(Shared:WaitForChild("FinalesData"))
 
--- GameState es hijo de este mismo Script.
+-- GameState y Mapa son hijos de este mismo Script.
 local GameState = require(script:WaitForChild("GameState"))
+local Mapa = require(script:WaitForChild("Mapa"))
+
+-- Levantamos la tienda ANTES de que entre nadie.
+Mapa.construir()
 
 -- ── Configuración del ritmo de la noche ──────────────────────────────
 local SEGUNDOS_ANTES_DE_EMPEZAR = 4 -- pausa al entrar, para que cargue el GUI
@@ -173,36 +177,49 @@ local function correrTurno(jugador)
 	-- Pausa para que el GUI del jugador alcance a construirse.
 	task.wait(SEGUNDOS_ANTES_DE_EMPEZAR)
 
-	-- Recorremos los clientes EN ORDEN.
-	for _, cliente in ipairs(ClientesData) do
+	-- Recorremos las entradas de la noche EN ORDEN.
+	for _, entrada in ipairs(ClientesData) do
 		-- Si el jugador se desconectó, se acabó.
 		if GameState.obtener(jugador) == nil then
 			return
 		end
 
-		-- ¿Este cliente aparece esta noche? Su condición decide,
-		-- usando las banderas acumuladas hasta ahora. Aquí es donde
-		-- las decisiones tempranas cambian la noche.
-		local apareceEstaNoche = true
-		if cliente.condicion ~= nil then
-			apareceEstaNoche = cliente.condicion(estado.banderas)
-		end
-
-		if apareceEstaNoche then
-			local opcionElegida = atenderCliente(jugador, estado, cliente)
-			if opcionElegida == nil then
-				return -- el jugador se fue a media decisión
+		if entrada.tipo == "evento" then
+			-- EVENTO DE AMBIENTE: pasa algo en el mapa (una PISTA).
+			-- No hay decisión: el jugador solo lo ve... si está atento.
+			Mapa.ejecutarEvento(entrada.evento)
+			task.wait(entrada.duracion or 5)
+		else
+			-- CLIENTE: ¿aparece esta noche? Su condición decide,
+			-- usando las banderas acumuladas hasta ahora. Aquí es donde
+			-- las decisiones tempranas cambian la noche.
+			local apareceEstaNoche = true
+			if entrada.condicion ~= nil then
+				apareceEstaNoche = entrada.condicion(estado.banderas)
 			end
 
-			-- Aplicamos las banderas. Esta línea hace que
-			-- "la noche recuerde" lo que elegiste.
-			if opcionElegida.banderas ~= nil then
-				GameState.marcarBanderas(jugador, opcionElegida.banderas)
-			end
+			if apareceEstaNoche then
+				-- La figura del cliente aparece frente al mostrador.
+				Mapa.mostrarNPC(entrada.npc)
 
-			-- Consecuencia inmediata en pantalla + tiempo de leerla.
-			remotoMostrarRespuesta:FireClient(jugador, opcionElegida.respuesta)
-			task.wait(SEGUNDOS_ENTRE_CLIENTES)
+				local opcionElegida = atenderCliente(jugador, estado, entrada)
+				if opcionElegida == nil then
+					return -- el jugador se fue a media decisión
+				end
+
+				-- Aplicamos las banderas. Esta línea hace que
+				-- "la noche recuerde" lo que elegiste.
+				if opcionElegida.banderas ~= nil then
+					GameState.marcarBanderas(jugador, opcionElegida.banderas)
+				end
+
+				-- Consecuencia inmediata en pantalla + tiempo de leerla.
+				remotoMostrarRespuesta:FireClient(jugador, opcionElegida.respuesta)
+				task.wait(SEGUNDOS_ENTRE_CLIENTES)
+
+				-- El cliente se retira del mostrador.
+				Mapa.quitarNPC()
+			end
 		end
 	end
 
@@ -218,6 +235,13 @@ local function correrTurno(jugador)
 		texto = final.texto,
 	})
 
+	-- Registro en consola (Output): útil para depurar por qué salió
+	-- cierto final — muestra exactamente qué banderas se marcaron.
+	local lista = {}
+	for nombre in pairs(estado.banderas) do
+		table.insert(lista, nombre)
+	end
+	print("[TurnoDeNoche] banderas:", table.concat(lista, ", "))
 	print("[TurnoDeNoche]", jugador.Name, "terminó con el final:", final.id)
 end
 

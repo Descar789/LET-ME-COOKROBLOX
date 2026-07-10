@@ -41,14 +41,16 @@ local FinalesData = {
 		end,
 	},
 
-	-- Final 3: el bueno. Fuiste honesto y amable toda la noche.
+	-- Final 3: el bueno. Atento, honesto y amable toda la noche.
+	-- Nota: dijiste_verdad_elvira solo se logra si VISTE al gato cruzar
+	-- (evento del mapa) — este final premia la atención, no la suerte.
 	{
 		id = "protegido",
 		titulo = "FINAL: PROTEGIDO POR EL GATO",
-		texto = "Fuiste honesto con Elvira, generoso con el chico y alimentaste al gato. Al amanecer, encuentras una vela blanca encendida junto a la caja y una nota: \"Esta tienda tiene muchos empleados. Pocos sobreviven al aburrimiento. Menos aún a la noche. Usted sobrevivió a ambos. — E.\"",
+		texto = "Viste lo que otros no ven, fuiste honesto con Elvira, generoso con el chico y alimentaste al gato. Al amanecer, encuentras una vela blanca encendida junto a la caja y una nota: \"Esta tienda tiene muchos empleados. Pocos sobreviven al aburrimiento. Menos aún a la noche. Usted sobrevivió a ambos. — E.\"",
 		condicion = function(banderas)
 			return banderas.dijiste_verdad_elvira == true
-				and banderas.fiaste_sopa == true
+				and (banderas.fiaste_sopa == true or banderas.pagaste_sopa == true)
 				and banderas.alimentaste_gato == true
 		end,
 	},

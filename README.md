@@ -1,10 +1,18 @@
 # Turno de Noche 🌙🏪
 
-Prototipo mínimo de un juego narrativo para Roblox. Eres el empleado del
+Prototipo de un juego narrativo para Roblox. Eres el empleado del
 turno nocturno (10 PM – 6 AM) de una tienda de conveniencia. Los clientes
 llegan uno por uno: algunos normales, otros... no tanto. Cada cliente te
 presenta **una decisión**, y tus decisiones se acumulan como *banderas*
 que cambian qué pasa después en la noche y qué final obtienes.
+
+**La tienda es un mapa 3D construido 100 % por código** — mostrador,
+estantes, refrigeradores, cámara de seguridad, trastienda con un frasco
+que brilla... Entre cliente y cliente ocurren **eventos de ambiente**
+(un gato cruza la tienda, las luces parpadean). Esos eventos son PISTAS:
+varias decisiones tienen 3 opciones y solo una es correcta — y solo
+puedes estar seguro de cuál **si estabas mirando cuando pasó la pista**.
+Las otras opciones son señuelos plausibles.
 
 ## Estructura del proyecto
 
@@ -12,15 +20,17 @@ Cada carpeta de `src/` corresponde a un lugar de Roblox Studio:
 
 | Carpeta / archivo | Lugar en Studio | Tipo | Qué hace |
 |---|---|---|---|
-| `src/shared/ClientesData.luau` | `ReplicatedStorage > Shared > ClientesData` | ModuleScript | Base de datos de clientes de la noche |
+| `src/shared/ClientesData.luau` | `ReplicatedStorage > Shared > ClientesData` | ModuleScript | Base de datos de la noche: clientes Y eventos-pista |
 | `src/shared/FinalesData.luau` | `ReplicatedStorage > Shared > FinalesData` | ModuleScript | Lista de finales y sus condiciones |
 | `src/server/init.server.luau` | `ServerScriptService > Server` | Script | Cerebro: loop de la noche, RemoteEvents, validación |
 | `src/server/GameState.luau` | `ServerScriptService > Server > GameState` (hijo del Script) | ModuleScript | Estado del turno por jugador (solo servidor) |
+| `src/server/Mapa.luau` | `ServerScriptService > Server > Mapa` (hijo del Script) | ModuleScript | Construye la tienda 3D + NPCs + eventos de ambiente |
 | `src/client/init.client.luau` | `StarterPlayer > StarterPlayerScripts > Client` | LocalScript | GUI creada 100 % por código |
 
 **Regla de arquitectura:** todo el estado vive en el servidor. El cliente
 solo dibuja lo que el servidor le manda y le avisa qué botón se pulsó.
-El servidor valida cada decisión — nunca confía en el cliente.
+El servidor valida cada decisión — nunca confía en el cliente. El mapa
+y sus eventos también viven en el servidor: se replican solos a todos.
 
 ## Cómo probar
 
@@ -53,6 +63,8 @@ El servidor valida cada decisión — nunca confía en el cliente.
    - Clic derecho en ese Script `Server` → Insert Object → **ModuleScript**
      (queda como HIJO del Script). Nómbralo `GameState`.
      Pega el contenido de `src/server/GameState.luau`.
+   - Otro **ModuleScript** hijo del mismo Script `Server`. Nómbralo `Mapa`.
+     Pega el contenido de `src/server/Mapa.luau`.
 
    **StarterPlayerScripts:**
    - En `StarterPlayer > StarterPlayerScripts`: clic derecho → Insert Object →
@@ -63,13 +75,32 @@ El servidor valida cada decisión — nunca confía en el cliente.
 
 ### Qué deberías ver
 
+- Apareces DETRÁS del mostrador de una tienda 24 hrs de noche: estantes
+  con productos, refrigeradores que brillan, cámara de seguridad con
+  lente rojo, trastienda con un frasco verde que no deberías mirar tanto.
 - Panel oscuro estilo novela visual en la parte baja de la pantalla.
 - El diálogo aparece letra por letra (efecto máquina de escribir).
-- Dos botones de decisión por cliente. Al elegir, ves la consecuencia.
-- 6–7 clientes según tus decisiones (uno es **condicional**: el doble del
-  chico de la sopa solo aparece si le fiaste al primero).
+- Cada cliente llega como figura al mostrador. 2 o 3 botones por decisión.
+- **Vigila la tienda entre clientes**: un gato blanco cruza hacia la
+  trastienda (~10:50 PM) y las luces parpadean (~2:30 AM). Esas pistas
+  te dicen qué opción es la correcta con Elvira y con el encapuchado.
+- 6–7 clientes según tus decisiones (el doble del chico solo aparece
+  si ayudaste al primero).
 - Al final: fade a negro y tu final del turno.
-- En la ventana *Output* (View → Output) el servidor imprime qué final obtuviste.
+- En la ventana *Output* (View → Output) el servidor imprime las
+  banderas que marcaste y qué final obtuviste — útil para entender
+  por qué te tocó ese final.
+
+### El truco de diseño: pistas y señuelos
+
+| Evento (pista) | Cuándo | Decisión que desbloquea |
+|---|---|---|
+| Gato blanco cruza a la trastienda | Después del 1er cliente | Elvira: "¿ha visto a mi gato?" → la opción **trastienda** es la única verdad. "Bosque" y "no vi nada" son señuelos. |
+| Las luces parpadean | Antes del encapuchado | Encapuchado: "apaga la cámara" → puedes **mentirle** ("está descompuesta desde el apagón") y salvarte sin apagar nada. Solo se te ocurre si viste el apagón. |
+
+Para agregar una pista nueva: crea el efecto en `Mapa.luau` (tabla
+`eventos`), y agrega `{ tipo = "evento", evento = "tu_id", duracion = N }`
+en la posición deseada de `ClientesData.luau`.
 
 ## Cómo funciona por dentro (para aprender)
 
@@ -77,9 +108,12 @@ El servidor valida cada decisión — nunca confía en el cliente.
  SERVIDOR                                        CLIENTE (GUI)
  ────────                                        ─────────────
  Recorre ClientesData en orden
+ ¿entrada tipo "evento"? ── sí → Mapa.ejecutarEvento()  (pista en el mapa 3D)
+        │ no: es cliente
  ¿cliente.condicion(banderas)? ─ no → lo salta
         │ sí
         ▼
+ Mapa.mostrarNPC() (figura al mostrador)
  FireClient("MostrarCliente") ────────────────▶  dibuja diálogo + botones
                                                       │ jugador pulsa botón
  valida idCliente + idOpcion  ◀──────────────── FireServer("TomarDecision")
@@ -87,7 +121,8 @@ El servidor valida cada decisión — nunca confía en el cliente.
         ▼
  aplica opcion.banderas al GameState
  FireClient("MostrarRespuesta") ──────────────▶  muestra consecuencia
-        │ (siguiente cliente...)
+ Mapa.quitarNPC()
+        │ (siguiente entrada...)
         ▼
  fin de la lista → recorre FinalesData,
  primer final cuya condición cumpla

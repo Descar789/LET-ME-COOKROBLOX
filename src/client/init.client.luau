@@ -218,10 +218,17 @@ local function limpiarBotones()
 end
 
 -- Crea un botón de decisión y lo conecta al servidor.
-local function crearBoton(idCliente, opcion)
+-- 'totalOpciones' reparte el ancho: 2 opciones = botones anchos,
+-- 3 o más = botones más angostos, todos caben en la fila.
+-- 'orden' fija LayoutOrder: sin él, UIListLayout acomoda los botones
+-- alfabéticamente y desordena las opciones.
+local function crearBoton(idCliente, opcion, totalOpciones, orden)
+	local anchoBoton = math.min(0.42, (1 / totalOpciones) - 0.03)
+
 	local boton = Instance.new("TextButton")
 	boton.Name = "Opcion_" .. opcion.id
-	boton.Size = UDim2.new(0.42, 0, 0, 52)
+	boton.LayoutOrder = orden
+	boton.Size = UDim2.new(anchoBoton, 0, 0, 52)
 	boton.BackgroundColor3 = COLOR_BOTON
 	boton.Font = Enum.Font.GothamMedium
 	boton.TextSize = 17
@@ -272,8 +279,8 @@ remotoMostrarCliente.OnClientEvent:Connect(function(datosCliente)
 	escribirTexto(etiquetaDialogo, datosCliente.dialogo)
 
 	limpiarBotones()
-	for _, opcion in ipairs(datosCliente.opciones) do
-		crearBoton(datosCliente.id, opcion)
+	for indice, opcion in ipairs(datosCliente.opciones) do
+		crearBoton(datosCliente.id, opcion, #datosCliente.opciones, indice)
 	end
 end)
 
