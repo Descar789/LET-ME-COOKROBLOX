@@ -6,12 +6,16 @@ llegan uno por uno: algunos normales, otros... no tanto. Cada cliente te
 presenta **una decisión**, y tus decisiones se acumulan como *banderas*
 que cambian qué pasa después en la noche y qué final obtienes.
 
-**La tienda es un mapa 3D construido 100 % por código** — mostrador,
-estantes, refrigeradores, cámara de seguridad, trastienda con un frasco
-que brilla... Entre cliente y cliente ocurren **eventos de ambiente**
-(un gato cruza la tienda, las luces parpadean). Esos eventos son PISTAS:
-varias decisiones tienen 3 opciones y solo una es correcta — y solo
-puedes estar seguro de cuál **si estabas mirando cuando pasó la pista**.
+**La tienda es un mapa 3D que vive en el place** (`workspace > Tienda`):
+mostrador, estantes, refrigeradores, cámara de seguridad, trastienda con
+un frasco que brilla... Se edita a mano en Studio como cualquier mapa;
+si necesitas regenerarlo desde cero, corre `tools/ConstruirMapa.luau`
+una vez en la Command Bar (modo Edit) y guarda el place.
+
+Entre cliente y cliente ocurren **eventos de ambiente** (un gato cruza
+la tienda, las luces parpadean). Esos eventos son PISTAS: varias
+decisiones tienen 3 opciones y solo una es correcta — y solo puedes
+estar seguro de cuál **si estabas mirando cuando pasó la pista**.
 Las otras opciones son señuelos plausibles.
 
 ## Estructura del proyecto
@@ -24,13 +28,15 @@ Cada carpeta de `src/` corresponde a un lugar de Roblox Studio:
 | `src/shared/FinalesData.luau` | `ReplicatedStorage > Shared > FinalesData` | ModuleScript | Lista de finales y sus condiciones |
 | `src/server/init.server.luau` | `ServerScriptService > Server` | Script | Cerebro: loop de la noche, RemoteEvents, validación |
 | `src/server/GameState.luau` | `ServerScriptService > Server > GameState` (hijo del Script) | ModuleScript | Estado del turno por jugador (solo servidor) |
-| `src/server/Mapa.luau` | `ServerScriptService > Server > Mapa` (hijo del Script) | ModuleScript | Construye la tienda 3D + NPCs + eventos de ambiente |
+| `src/server/Mapa.luau` | `ServerScriptService > Server > Mapa` (hijo del Script) | ModuleScript | Lo dinámico de la escena: gato animado, NPCs, eventos-pista |
+| `tools/ConstruirMapa.luau` | — (Command Bar, una sola vez) | herramienta | Generador del mapa; la tienda queda guardada en el place |
 | `src/client/init.client.luau` | `StarterPlayer > StarterPlayerScripts > Client` | LocalScript | GUI creada 100 % por código |
 
 **Regla de arquitectura:** todo el estado vive en el servidor. El cliente
 solo dibuja lo que el servidor le manda y le avisa qué botón se pulsó.
 El servidor valida cada decisión — nunca confía en el cliente. El mapa
-y sus eventos también viven en el servidor: se replican solos a todos.
+es parte del place (no se construye en runtime); lo dinámico (gato,
+NPCs, eventos) corre en el servidor y se replica solo a los jugadores.
 
 ## Cómo probar
 
@@ -71,7 +77,11 @@ y sus eventos también viven en el servidor: se replican solos a todos.
      **LocalScript**. Nómbralo `Client`.
      Pega el contenido de `src/client/init.client.luau`.
 
-3. Pulsa **▶ Play**. Espera ~4 segundos y llegará el primer cliente.
+3. **El mapa**: abre la Command Bar (View → Command Bar), pega TODO el
+   contenido de `tools/ConstruirMapa.luau` y presiona Enter. Aparece la
+   tienda en `workspace > Tienda`. Guarda el place (Ctrl+S).
+
+4. Pulsa **▶ Play**. Espera ~4 segundos y llegará el primer cliente.
 
 ### Qué deberías ver
 

@@ -28,8 +28,9 @@ local FinalesData = require(Shared:WaitForChild("FinalesData"))
 local GameState = require(script:WaitForChild("GameState"))
 local Mapa = require(script:WaitForChild("Mapa"))
 
--- Levantamos la tienda ANTES de que entre nadie.
-Mapa.construir()
+-- La tienda YA existe en el place (workspace > Tienda). Solo la
+-- localizamos y preparamos lo dinámico (gato, NPCs, eventos).
+Mapa.inicializar()
 
 -- ── Configuración del ritmo de la noche ──────────────────────────────
 local SEGUNDOS_ANTES_DE_EMPEZAR = 4 -- pausa al entrar, para que cargue el GUI
